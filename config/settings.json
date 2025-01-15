@@ -1,0 +1,26 @@
+{
+    "projects": {
+        "Server": {
+            "dependencies": [],
+            "dependents": [],
+            "guid": "76B74B2B-1136-5895-4AE6-1BD86DC33469",
+            "lib": false,
+            "pch": true,
+            "vcpkg": true,
+            "window": false
+        },
+        "ball": {
+            "dependencies": [],
+            "dependents": [],
+            "guid": "54FC7EB3-70B9-1C59-66D1-680A286D294D",
+            "lib": false,
+            "pch": true,
+            "vcpkg": true,
+            "window": true
+        }
+    },
+    "solution_guid": "706A461A-68F1-75E8-0AFE-027C77B54523",
+    "solution_name": "ball",
+    "startup_project": "ball",
+    "version": "1.17.3"
+}
