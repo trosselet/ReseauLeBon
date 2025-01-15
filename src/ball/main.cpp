@@ -13,9 +13,12 @@ static DWORD WINAPI threadFunc(void* lPtr)
 {
     Data* data = static_cast<Data*>(lPtr);
 
-    std::string message = std::to_string(data->x) + " " + std::to_string(data->y);
+
+    char message[8];
+    memcpy(message, &data->x, 4);
+    memcpy(message + 4, &data->y, 4);
     
-    int ret = sendto(data->socket, message.c_str(), static_cast<int>(message.length()), 0, reinterpret_cast<const sockaddr*>(&data->addr), sizeof(data->addr));
+    int ret = sendto(data->socket, message, 15, 0, reinterpret_cast<const sockaddr*>(&data->addr), sizeof(data->addr));
     if (ret <= 0)
     {
         std::cout << "Erreur envoi de données : " << WSAGetLastError() << ". Fermeture du programme.";

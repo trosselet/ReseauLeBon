@@ -59,15 +59,21 @@ int main()
     char buffer[1024];
     int iResult;
 
+    float x;
+    float y;
+
     while (true)
     {
         
         int iResult = recvfrom(listen_socket, buffer, 1023, 0, reinterpret_cast<sockaddr*>(&from), &fromlen);
 
+        memcpy(&x, buffer, 4);
+        memcpy(&y, buffer + 4, 4);
+
         if (iResult > 0)
         {
             buffer[iResult] = '\0';
-            std::cout << "Received: " << buffer << std::endl;
+            std::cout << "Received: " << x << "   " << y << std::endl;
 
             std::string response = "Message received: " + std::string(buffer);
 
