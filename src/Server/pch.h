@@ -1,7 +1,7 @@
 #ifndef PCH_H
 #define PCH_H
 
-
+#include <SFML/Graphics.hpp>
 #include <iostream>
 #include <WinSock2.h>
 #include "WS2tcpip.h"

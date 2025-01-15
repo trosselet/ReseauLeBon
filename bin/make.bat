@@ -1,2 +1,2 @@
 cd ../..
-SolutionGen.exe -make reseau
+SolutionGen.exe -make ReseauLeBon

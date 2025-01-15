@@ -13,12 +13,11 @@ static DWORD WINAPI threadFunc(void* lPtr)
 {
     Data* data = static_cast<Data*>(lPtr);
 
-
     char message[8];
     memcpy(message, &data->x, 4);
     memcpy(message + 4, &data->y, 4);
-    
-    int ret = sendto(data->socket, message, 15, 0, reinterpret_cast<const sockaddr*>(&data->addr), sizeof(data->addr));
+
+    int ret = sendto(data->socket, message, 8, 0, reinterpret_cast<const sockaddr*>(&data->addr), sizeof(data->addr));
     if (ret <= 0)
     {
         std::cout << "Erreur envoi de données : " << WSAGetLastError() << ". Fermeture du programme.";
@@ -30,41 +29,29 @@ static DWORD WINAPI threadFunc(void* lPtr)
 
 int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR cmdLine, int cmdShow)
 {
-    //Init
-    sf::RenderWindow window(sf::VideoMode(800, 600), "My window");
-
+    sf::RenderWindow window(sf::VideoMode(800, 600), "Client Window");
     sf::CircleShape shape(20);
     shape.setFillColor(sf::Color::Green);
 
-    shape.setPosition(sf::Vector2f(400, 300));
+    shape.setPosition(400, 300);
     sf::Vector2f shapePos = shape.getPosition();
 
-    int multipleX = 1;
-    int multipleY = 1;
+    int dirX = 1;
+    int dirY = 1;
 
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
 
     SOCKET sendingSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
-    sockaddr_in ReceiverAddr;
-    ReceiverAddr.sin_family = AF_INET;
-    ReceiverAddr.sin_port = htons(130);
-    ReceiverAddr.sin_addr.s_addr = INADDR_ANY;
-
-    unsigned short portDst = 130;
-    sockaddr_in to = { 0 };
+    sockaddr_in to;
     inet_pton(AF_INET, "127.0.0.1", &to.sin_addr.s_addr);
     to.sin_family = AF_INET;
-    to.sin_port = htons(portDst);
+    to.sin_port = htons(130);
 
-    Data _data;
-
-    _data.addr = to;
-    _data.socket = sendingSocket;
-
-    HANDLE hThread = nullptr;
-
+    Data data;
+    data.addr = to;
+    data.socket = sendingSocket;
 
     while (window.isOpen())
     {
@@ -75,32 +62,23 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR cmdLine, int cmdS
                 window.close();
         }
 
-        shape.setPosition(sf::Vector2f(shape.getPosition().x + 0.1 * multipleX, 300));
+        // Update ball position
+        shape.move(0.1f * dirX, 0.1f * dirY);
+        if (shape.getPosition().x <= 0 || shape.getPosition().x >= 780) dirX *= -1;
+        if (shape.getPosition().y <= 0 || shape.getPosition().y >= 580) dirY *= -1;
 
-        if (shape.getPosition().x >= 780 || shape.getPosition().x <= 0)
-        {
-            multipleX *= -1;
-        }
-        
-        if (shape.getPosition().y > 600 || shape.getPosition().y < 0)
-        {
-            multipleX *= -1;
-        }
+        // Send ball position
+        data.x = shape.getPosition().x;
+        data.y = shape.getPosition().y;
+        CreateThread(nullptr, 0, threadFunc, &data, 0, nullptr);
 
-        _data.x = shape.getPosition().x;
-        _data.y = shape.getPosition().y;
-
-        hThread = CreateThread(NULL, 0, threadFunc, &_data, 0, 0);
-
+        // Render
         window.clear(sf::Color::Black);
-
         window.draw(shape);
-
         window.display();
     }
 
     closesocket(sendingSocket);
-
     WSACleanup();
 
     return 0;
