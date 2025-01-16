@@ -1,57 +1,115 @@
 #include "pch.h"
 #include "main.h"
 
+#define WIDTH 800
+#define HEIGHT 600
+#define SERVER_PORT 130
+#define BUFFER_SIZE 12
+
 struct Data
 {
     float x;
     float y;
+    int id;
     SOCKET socket;
-    sockaddr_in addr;
+    sockaddr_in serverAddr;
+};
+
+struct Player
+{
+    sf::Color playerColor;
+    sf::Color enemyColor;
+    sf::Keyboard::Key top;
+    sf::Keyboard::Key down;
+    sf::Keyboard::Key left;
+    sf::Keyboard::Key right;
+    int port;
+    int id;
 };
 
 static DWORD WINAPI threadFunc(void* lPtr)
 {
     Data* data = static_cast<Data*>(lPtr);
 
-    char message[8];
-    memcpy(message, &data->x, 4);
-    memcpy(message + 4, &data->y, 4);
+    char buffer[BUFFER_SIZE];
+    int id = -1;
+    float x = 0.0f, y = 0.0f;
 
-    int ret = sendto(data->socket, message, 8, 0, reinterpret_cast<const sockaddr*>(&data->addr), sizeof(data->addr));
-    if (ret <= 0)
+    while (true)
     {
-        std::cout << "Erreur envoi de données : " << WSAGetLastError() << ". Fermeture du programme.";
-        return 2;
+        sockaddr_in senderAddr{};
+        int senderAddrSize = sizeof(senderAddr);
+
+        int recvSize = recvfrom(data->socket, buffer, BUFFER_SIZE, 0, (sockaddr*)&senderAddr, &senderAddrSize);
+        if (recvSize > 0)
+        {
+            memcpy(&id, buffer, 4);
+            memcpy(&x, buffer + 4, 4);
+            memcpy(&y, buffer + 8, 4);
+
+            // Mettre à jour la position et l'ID du joueur de l'autre client
+            data->id = id;
+            data->x = x;
+            data->y = y;
+        }
     }
 
-    return 1;
+    return 0;
 }
 
-int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR cmdLine, int cmdShow)
+static DWORD WINAPI clientFunc(void* lPtr)
 {
-    sf::RenderWindow window(sf::VideoMode(800, 600), "Client Window");
-    sf::CircleShape shape(20);
-    shape.setFillColor(sf::Color::Green);
+    Player* player = static_cast<Player*>(lPtr);
 
-    shape.setPosition(400, 300);
-    sf::Vector2f shapePos = shape.getPosition();
+    sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "Client Window");
+    window.setFramerateLimit(60);
 
-    int dirX = 1;
-    int dirY = 1;
+    float radius = 20;
+
+    sf::CircleShape playerShape(radius);
+    playerShape.setFillColor(player->playerColor);
+    playerShape.setOrigin(radius, radius);
+    playerShape.setPosition(WIDTH / 2, HEIGHT / 2);
+
+    sf::CircleShape enemyShape(radius);
+    enemyShape.setFillColor(player->enemyColor);
+    enemyShape.setOrigin(radius, radius);
+    enemyShape.setPosition(WIDTH / 2, HEIGHT / 2);
 
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
 
-    SOCKET sendingSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    SOCKET clientSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
-    sockaddr_in to;
-    inet_pton(AF_INET, "127.0.0.1", &to.sin_addr.s_addr);
-    to.sin_family = AF_INET;
-    to.sin_port = htons(130);
+    sockaddr_in clientAddr{};
+    clientAddr.sin_family = AF_INET;
+    clientAddr.sin_port = htons(player->port);
+    clientAddr.sin_addr.s_addr = INADDR_ANY;
 
-    Data data;
-    data.addr = to;
-    data.socket = sendingSocket;
+    bind(clientSocket, (sockaddr*)&clientAddr, sizeof(clientAddr));
+
+    sockaddr_in serverAddr{};
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(SERVER_PORT);
+    inet_pton(AF_INET, "127.0.0.1", &serverAddr.sin_addr.s_addr);
+
+    Data playerData{};
+    playerData.socket = clientSocket;
+    playerData.serverAddr = serverAddr;
+    playerData.id = player->id;
+    playerData.x = 0.0f;
+    playerData.y = 0.0f;
+
+    Data enemyData{};
+    enemyData.socket = clientSocket;
+    enemyData.serverAddr = serverAddr;
+    enemyData.id = -1;
+    enemyData.x = 0.0f;
+    enemyData.y = 0.0f;
+
+    HANDLE recvThread = CreateThread(nullptr, 0, threadFunc, &enemyData, 0, nullptr);
+
+    const float speed = 0.2f;
 
     while (window.isOpen())
     {
@@ -62,24 +120,72 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR cmdLine, int cmdS
                 window.close();
         }
 
-        // Update ball position
-        shape.move(0.1f * dirX, 0.1f * dirY);
-        if (shape.getPosition().x <= 0 || shape.getPosition().x >= 780) dirX *= -1;
-        if (shape.getPosition().y <= 0 || shape.getPosition().y >= 580) dirY *= -1;
+        // Déplacement du joueur avec les touches définies
+        if (sf::Keyboard::isKeyPressed(player->top))
+            playerShape.move(0, -speed);
 
-        // Send ball position
-        data.x = shape.getPosition().x;
-        data.y = shape.getPosition().y;
-        CreateThread(nullptr, 0, threadFunc, &data, 0, nullptr);
+        if (sf::Keyboard::isKeyPressed(player->down))
+            playerShape.move(0, speed);
 
-        // Render
+        if (sf::Keyboard::isKeyPressed(player->left))
+            playerShape.move(-speed, 0);
+
+        if (sf::Keyboard::isKeyPressed(player->right))
+            playerShape.move(speed, 0);
+
+        // Empêcher la balle du joueur de sortir de l'écran
+        if (playerShape.getPosition().x < radius)
+            playerShape.setPosition(radius, playerShape.getPosition().y);
+
+        if (playerShape.getPosition().x > WIDTH - radius)
+            playerShape.setPosition(WIDTH - radius, playerShape.getPosition().y);
+
+        if (playerShape.getPosition().y < radius)
+            playerShape.setPosition(playerShape.getPosition().x, radius);
+
+        if (playerShape.getPosition().y > HEIGHT - radius)
+            playerShape.setPosition(playerShape.getPosition().x, HEIGHT - radius);
+
+        // Mettre à jour la position de la balle du joueur
+        playerData.x = playerShape.getPosition().x;
+        playerData.y = playerShape.getPosition().y;
+
+        // Envoyer la position locale au serveur
+        char buffer[BUFFER_SIZE];
+        memcpy(buffer, &playerData.id, 4);
+        memcpy(buffer + 4, &playerData.x, 4);
+        memcpy(buffer + 8, &playerData.y, 4);
+        sendto(clientSocket, buffer, BUFFER_SIZE, 0, (sockaddr*)&serverAddr, sizeof(serverAddr));
+
+        // Mise à jour de la balle ennemie avec la position reçue
+        enemyShape.setPosition(enemyData.x, enemyData.y);
+
+        // Afficher les balles
         window.clear(sf::Color::Black);
-        window.draw(shape);
+        window.draw(playerShape);
+        window.draw(enemyShape);
         window.display();
     }
 
-    closesocket(sendingSocket);
+    WaitForSingleObject(recvThread, INFINITE);
+    CloseHandle(recvThread);
+
+    closesocket(clientSocket);
     WSACleanup();
+
+    return 0;
+}
+
+int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR cmdLine, int cmdShow)
+{
+    Player playerA = { sf::Color::Green, sf::Color::Yellow, sf::Keyboard::Z, sf::Keyboard::S, sf::Keyboard::Q, sf::Keyboard::D, 131, 1 };
+    Player playerB = { sf::Color::Red, sf::Color::Yellow, sf::Keyboard::O, sf::Keyboard::L, sf::Keyboard::K, sf::Keyboard::M, 132, 2 };
+
+    HANDLE clientA = CreateThread(nullptr, 0, clientFunc, &playerA, 0, nullptr);
+    HANDLE clientB = CreateThread(nullptr, 0, clientFunc, &playerB, 0, nullptr);
+
+    WaitForSingleObject(clientA, INFINITE);
+    WaitForSingleObject(clientB, INFINITE);
 
     return 0;
 }
