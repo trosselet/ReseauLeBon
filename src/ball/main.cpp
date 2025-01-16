@@ -61,7 +61,10 @@ static DWORD WINAPI clientFunc(void* lPtr)
     Player* player = static_cast<Player*>(lPtr);
 
     sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "Client Window");
+    window.setPosition(sf::Vector2i(WIDTH * player->id, 270));
     window.setFramerateLimit(60);
+
+    sf::View view(sf::FloatRect(0, 0, WIDTH, HEIGHT));
 
     float radius = 20;
 
@@ -119,7 +122,6 @@ static DWORD WINAPI clientFunc(void* lPtr)
                 window.close();
         }
 
-        // Déplacement du joueur avec les touches définies
         if (sf::Keyboard::isKeyPressed(player->top))
             playerShape.move(0, -speed);
 
@@ -132,7 +134,6 @@ static DWORD WINAPI clientFunc(void* lPtr)
         if (sf::Keyboard::isKeyPressed(player->right))
             playerShape.move(speed, 0);
 
-        // Empêcher la balle du joueur de sortir de l'écran
         if (playerShape.getPosition().x < radius)
             playerShape.setPosition(radius, playerShape.getPosition().y);
 
@@ -145,21 +146,20 @@ static DWORD WINAPI clientFunc(void* lPtr)
         if (playerShape.getPosition().y > HEIGHT - radius)
             playerShape.setPosition(playerShape.getPosition().x, HEIGHT - radius);
 
-        // Mettre à jour la position de la balle du joueur
         playerData.x = playerShape.getPosition().x;
         playerData.y = playerShape.getPosition().y;
 
-        // Envoyer la position locale au serveur
         char buffer[BUFFER_SIZE];
         memcpy(buffer, &playerData.id, 4);
         memcpy(buffer + 4, &playerData.x, 4);
         memcpy(buffer + 8, &playerData.y, 4);
         sendto(clientSocket, buffer, BUFFER_SIZE, 0, (sockaddr*)&serverAddr, sizeof(serverAddr));
 
-        // Mise à jour de la balle ennemie avec la position reçue
         enemyShape.setPosition(enemyData.x, enemyData.y);
 
-        // Afficher les balles
+        view.setCenter(playerShape.getPosition());
+        window.setView(view);
+
         window.clear(sf::Color::Black);
         window.draw(playerShape);
         window.draw(enemyShape);
