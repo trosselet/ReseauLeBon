@@ -47,7 +47,6 @@ static DWORD WINAPI threadFunc(void* lPtr)
             memcpy(&x, buffer + 4, 4);
             memcpy(&y, buffer + 8, 4);
 
-            // Mettre à jour la position et l'ID du joueur de l'autre client
             data->id = id;
             data->x = x;
             data->y = y;
@@ -178,8 +177,8 @@ static DWORD WINAPI clientFunc(void* lPtr)
 
 int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR cmdLine, int cmdShow)
 {
-    Player playerA = { sf::Color::Green, sf::Color::Yellow, sf::Keyboard::Z, sf::Keyboard::S, sf::Keyboard::Q, sf::Keyboard::D, 131, 1 };
-    Player playerB = { sf::Color::Red, sf::Color::Yellow, sf::Keyboard::O, sf::Keyboard::L, sf::Keyboard::K, sf::Keyboard::M, 132, 2 };
+    Player playerA = { sf::Color::Green, sf::Color::Yellow, sf::Keyboard::Z, sf::Keyboard::S, sf::Keyboard::Q, sf::Keyboard::D, 131, 0 };
+    Player playerB = { sf::Color::Red, sf::Color::Yellow, sf::Keyboard::O, sf::Keyboard::L, sf::Keyboard::K, sf::Keyboard::M, 132, 1 };
 
     HANDLE clientA = CreateThread(nullptr, 0, clientFunc, &playerA, 0, nullptr);
     HANDLE clientB = CreateThread(nullptr, 0, clientFunc, &playerB, 0, nullptr);

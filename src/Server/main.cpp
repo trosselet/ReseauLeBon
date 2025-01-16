@@ -5,7 +5,8 @@
 #define BUFFER_SIZE 12
 #define MAX_CLIENTS 2
 
-struct ClientData {
+struct ClientData 
+{
     int id;
     float x, y;
     sockaddr_in addr;
@@ -33,18 +34,23 @@ int main() {
 
     std::cout << "Serveur en attente des connexions..." << std::endl;
 
-    while (true) {
+    while (true) 
+    {
         int recvSize = recvfrom(serverSocket, buffer, BUFFER_SIZE, 0, (sockaddr*)&clientAddr, &clientAddrSize);
-        if (recvSize > 0) {
+        if (recvSize > 0) 
+        {
             int id;
             float x, y;
             memcpy(&id, buffer, 4);
             memcpy(&x, buffer + 4, 4);
             memcpy(&y, buffer + 8, 4);
 
+
             bool clientExists = false;
-            for (int i = 0; i < clientCount; ++i) {
-                if (clients[i].id == id) {
+            for (int i = 0; i < clientCount; ++i) 
+            {
+                if (clients[i].id == id) 
+                {
                     clients[i].x = x;
                     clients[i].y = y;
                     clientExists = true;
@@ -52,7 +58,8 @@ int main() {
                 }
             }
 
-            if (!clientExists && clientCount < MAX_CLIENTS) {
+            if (!clientExists && clientCount < MAX_CLIENTS)
+            {
                 clients[clientCount].id = id;
                 clients[clientCount].x = x;
                 clients[clientCount].y = y;
@@ -61,16 +68,20 @@ int main() {
                 std::cout << "Nouveau client connecté : ID = " << id << std::endl;
             }
 
-            char sendBuffer[BUFFER_SIZE * MAX_CLIENTS] = { 0 };
-            for (int i = 0; i < clientCount; ++i) {
-                memcpy(sendBuffer + i * BUFFER_SIZE, &clients[i].id, 4);
-                memcpy(sendBuffer + i * BUFFER_SIZE + 4, &clients[i].x, 4);
-                memcpy(sendBuffer + i * BUFFER_SIZE + 8, &clients[i].y, 4);
-            }
 
-            for (int i = 0; i < clientCount; ++i) {
-                sendto(serverSocket, sendBuffer, BUFFER_SIZE * clientCount, 0,
-                    (sockaddr*)&clients[i].addr, sizeof(clients[i].addr));
+            for (int i = 0; i < clientCount; ++i) 
+            {
+                char sendBuffer[BUFFER_SIZE] = { 0 };
+
+
+                if (clients[i].id != id) 
+                {
+                    memcpy(sendBuffer, &id, 4);
+                    memcpy(sendBuffer + 4, &x, 4);
+                    memcpy(sendBuffer + 8, &y, 4);
+
+                    sendto(serverSocket, sendBuffer, BUFFER_SIZE, 0, (sockaddr*)&clients[i].addr, sizeof(clients[i].addr));
+                }
             }
         }
     }
