@@ -64,8 +64,6 @@ static DWORD WINAPI clientFunc(void* lPtr)
     window.setPosition(sf::Vector2i(WIDTH * player->id, 270));
     window.setFramerateLimit(60);
 
-    sf::View view(sf::FloatRect(0, 0, WIDTH, HEIGHT));
-
     float radius = 20;
 
     sf::CircleShape playerShape(radius);
@@ -123,31 +121,17 @@ static DWORD WINAPI clientFunc(void* lPtr)
         }
 
         if (sf::Keyboard::isKeyPressed(player->top))
-            playerShape.move(0, -speed);
+            playerData.y -= speed;
 
         if (sf::Keyboard::isKeyPressed(player->down))
-            playerShape.move(0, speed);
+            playerData.y += speed;
 
         if (sf::Keyboard::isKeyPressed(player->left))
-            playerShape.move(-speed, 0);
+            playerData.x -= speed;
 
         if (sf::Keyboard::isKeyPressed(player->right))
-            playerShape.move(speed, 0);
-
-        if (playerShape.getPosition().x < radius)
-            playerShape.setPosition(radius, playerShape.getPosition().y);
-
-        if (playerShape.getPosition().x > WIDTH - radius)
-            playerShape.setPosition(WIDTH - radius, playerShape.getPosition().y);
-
-        if (playerShape.getPosition().y < radius)
-            playerShape.setPosition(playerShape.getPosition().x, radius);
-
-        if (playerShape.getPosition().y > HEIGHT - radius)
-            playerShape.setPosition(playerShape.getPosition().x, HEIGHT - radius);
-
-        playerData.x = playerShape.getPosition().x;
-        playerData.y = playerShape.getPosition().y;
+            playerData.x += speed;
+    
 
         char buffer[BUFFER_SIZE];
         memcpy(buffer, &playerData.id, 4);
@@ -155,16 +139,18 @@ static DWORD WINAPI clientFunc(void* lPtr)
         memcpy(buffer + 8, &playerData.y, 4);
         sendto(clientSocket, buffer, BUFFER_SIZE, 0, (sockaddr*)&serverAddr, sizeof(serverAddr));
 
-        enemyShape.setPosition(enemyData.x, enemyData.y);
+        sf::Vector2f enemyRelativePos(enemyData.x - playerData.x, enemyData.y - playerData.y);
 
-        view.setCenter(playerShape.getPosition());
-        window.setView(view);
+        playerShape.setPosition(WIDTH / 2, HEIGHT / 2);
+
+        enemyShape.setPosition(WIDTH / 2 + enemyRelativePos.x, HEIGHT / 2 + enemyRelativePos.y);
 
         window.clear(sf::Color::Black);
         window.draw(playerShape);
         window.draw(enemyShape);
         window.display();
     }
+
 
     WaitForSingleObject(recvThread, INFINITE);
     CloseHandle(recvThread);
